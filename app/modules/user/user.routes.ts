@@ -10,7 +10,7 @@ import { authMiddleware } from '../../common/middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/', handleUserSignup);
+router.post('/register', handleUserSignup);
 router.post('/login', handleUserLogin);
 router.post('/logout', authMiddleware, handleUserLogout);
 router.get('/me', authMiddleware, getUserProfile);
