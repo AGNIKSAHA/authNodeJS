@@ -146,7 +146,7 @@ GET /api/v1/health
 
 #### Signup
 ```
-POST /api/v1/users
+POST /api/v1/users/register
 ```
 
 Body:
