@@ -249,12 +249,6 @@ feat(auth): implement MongoDB session-based authentication with logout
 
 ---
 
-## 📜 License
-
-MIT
-
----
-
 ## ✨ Author
 
 **Agnik Saha**  

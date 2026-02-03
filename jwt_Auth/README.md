@@ -253,7 +253,3 @@ feat(auth): implement JWT authentication with HttpOnly cookies
 ```
 
 ---
-
-## 📜 License
-
-MIT
