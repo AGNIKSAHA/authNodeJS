@@ -1,9 +1,14 @@
 # 🔐 JWT Authentication with HttpOnly Cookies  
-**Node.js · Express · TypeScript · MongoDB**
+**Node.js · Express · TypeScript · MongoDB · Google OAuth**
 
 A **production-grade authentication backend** built with **Node.js**, **Express**, **TypeScript**, and **MongoDB**, using **JWT access & refresh tokens stored in HttpOnly cookies**.
 
-This project focuses on **clean architecture**, **strict TypeScript**, **secure auth flows**, and **manual validation without Zod/Joi**.
+This backend supports:
+- Local authentication (email/password)
+- Google OAuth (backend-driven, browser-initiated)
+- Secure password reset via email
+
+No frontend is required to test authentication flows.
 
 ---
 
@@ -11,7 +16,8 @@ This project focuses on **clean architecture**, **strict TypeScript**, **secure 
 
 - ✅ JWT **Access Token + Refresh Token**
 - ✅ Tokens stored in **HttpOnly cookies**
-- ✅ Secure login / logout
+- ✅ Local login & logout
+- ✅ Google OAuth 2.0 (Passport)
 - ✅ Refresh token persistence in DB
 - ✅ Password hashing with **bcryptjs**
 - ✅ Forgot password & reset password via email
@@ -30,6 +36,8 @@ This project focuses on **clean architecture**, **strict TypeScript**, **secure 
 - **MongoDB + Mongoose**
 - **jsonwebtoken**
 - **bcryptjs**
+- **passport**
+- **passport-google-oauth20**
 - **nodemailer**
 - **cookie-parser**
 - **tsx**
@@ -42,12 +50,12 @@ This project focuses on **clean architecture**, **strict TypeScript**, **secure 
 .
 ├── index.ts
 ├── app/
-│   ├── routes/
-│   │   └── index.ts
+│   ├── routes.ts
 │   ├── common/
 │   │   ├── config/
 │   │   │   ├── db.ts
-│   │   │   └── env.ts
+│   │   │   ├── env.ts
+│   │   │   └── passport.ts
 │   │   ├── middlewares/
 │   │   │   ├── auth.middleware.ts
 │   │   │   ├── catch.middleware.ts
@@ -56,10 +64,13 @@ This project focuses on **clean architecture**, **strict TypeScript**, **secure 
 │   │   │   ├── jwt.ts
 │   │   │   └── mail.ts
 │   │   ├── validators/
-│   │   │   └── index.ts
+│   │   │   └── validators.ts
 │   │   └── types/
 │   │       └── express.d.ts
 │   └── modules/
+│       ├── auth/
+│       │   ├── auth.controller.ts
+│       │   └── auth.routes.ts
 │       ├── user/
 │       │   ├── dto/
 │       │   │   ├── login.dto.ts
@@ -72,7 +83,6 @@ This project focuses on **clean architecture**, **strict TypeScript**, **secure 
 │       │   └── user.helpers.ts
 │       └── token/
 │           ├── refreshToken.model.ts
-│           └── token.service.ts
 ├── tsconfig.json
 ├── package.json
 ├── .env
@@ -83,7 +93,7 @@ This project focuses on **clean architecture**, **strict TypeScript**, **secure 
 
 ## ⚙️ Installation & Setup
 
-### 1️⃣ Clone the repository
+### 1️⃣ Clone repository
 
 ```bash
 git clone <your-repo-url>
@@ -102,7 +112,7 @@ npm install
 
 ### 3️⃣ Environment Variables
 
-Create a `.env` file:
+Create `.env`:
 
 ```env
 PORT=4020
@@ -121,59 +131,86 @@ MAIL_PORT=587
 MAIL_USER=your_email@gmail.com
 MAIL_PASS=your_app_password
 
+GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxxxx
+GOOGLE_CALLBACK_URL=http://localhost:4020/api/v1/auth/google/callback
+
 FRONTEND_URL=http://localhost:3000
 ```
 
----
-
-### 4️⃣ Run the project
-
-```bash
-npm run dev
-```
+Restart server after changes.
 
 ---
 
 ## 🔐 Authentication Flow
 
+### Local Auth
 - Signup → hash password → save user
-- Login → issue access & refresh tokens
-- Tokens stored in HttpOnly cookies
-- Auth middleware validates access token
-- Refresh token rotates access token
-- Logout clears cookies & DB token
+- Login → issue JWT tokens → store in cookies
+- Logout → clear cookies & revoke refresh token
+
+### Google OAuth (No Frontend)
+- Open browser → `GET /api/v1/auth/google`
+- Google login screen appears
+- Google redirects to backend callback
+- Backend issues JWT cookies
+- User authenticated
+
+⚠️ Google OAuth **cannot be tested via Postman** (browser required).
 
 ---
 
 ## 📌 API Endpoints
 
 ### Public
-- POST `/api/v1/users/register`
-- POST `/api/v1/users/login`
-- POST `/api/v1/users/forgot-password`
-- POST `/api/v1/users/reset-password/:token`
+
+- `GET /api/v1/health`
+- `POST /api/v1/users/register`
+- `POST /api/v1/users/login`
+- `POST /api/v1/users/forgot-password`
+- `POST /api/v1/users/reset-password/:token`
+- `GET /api/v1/auth/google`
+- `GET /api/v1/auth/google/callback`
 
 ### Protected
-- GET `/api/v1/users/me`
-- POST `/api/v1/users/logout`
+
+- `GET /api/v1/users/me`
+- `POST /api/v1/users/logout`
 
 ---
 
 ## 🍪 Cookie Details
 
-| Cookie | Purpose | HttpOnly |
-|------|--------|----------|
-| access_token | Auth | ✅ |
-| refresh_token | Token refresh | ✅ |
+| Cookie | Purpose |
+|------|--------|
+| access_token | Authentication |
+| refresh_token | Token refresh |
+
+Both are **HttpOnly**, `SameSite=lax`, `Secure` in production.
+
+---
+
+## 🧪 Testing
+
+### Google OAuth
+1. Start server
+2. Open browser
+3. Visit `http://localhost:4020/api/v1/auth/google`
+4. Login with Google
+5. Cookies are set
+
+### Protected APIs
+- Use browser directly, or
+- Copy cookies to Postman
 
 ---
 
 ## 🛡️ Security Notes
 
-- Password hashing with bcrypt
+- Passwords hashed with bcrypt (12 rounds)
 - JWT stored in HttpOnly cookies
-- Refresh token stored in DB
-- Strict request validation
+- Refresh tokens stored & revoked in DB
+- Strict validation for auth endpoints
 
 ---
 
@@ -190,14 +227,20 @@ npm start
 ## 🧾 Git Commit Example
 
 ```bash
-feat(auth): implement JWT auth with access & refresh tokens
+feat(auth): add google oauth with jwt cookies
 ```
 
 ---
 
 ## 🏁 Final Notes
 
-This project is ideal for:
+This project is:
+- Backend-only friendly
+- Secure by default
+- Strictly typed
+- Production-ready
+
+Ideal for:
 - Learning real-world authentication
-- Production-ready backend templates
+- Bootstrapping secure APIs
 - Interview-ready Node.js architecture
