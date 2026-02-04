@@ -1,21 +1,24 @@
-# 🔐 JWT Authentication with HttpOnly Cookies (Node.js + TypeScript)
+# 🔐 JWT Authentication with HttpOnly Cookies  
+**Node.js · Express · TypeScript · MongoDB**
 
-A **production-ready authentication backend** built with **Node.js**, **Express**, **TypeScript**, and **MongoDB**, using **JWT stored in HttpOnly cookies** for secure, stateless authentication.
+A **production-grade authentication backend** built with **Node.js**, **Express**, **TypeScript**, and **MongoDB**, using **JWT access & refresh tokens stored in HttpOnly cookies**.
 
-This project demonstrates **modern auth best practices** with clean architecture, strict typing, and scalable design.
+This project focuses on **clean architecture**, **strict TypeScript**, **secure auth flows**, and **manual validation without Zod/Joi**.
 
 ---
 
 ## ✨ Features
 
-- ✅ JWT authentication (stateless)
-- ✅ JWT stored in **HttpOnly cookies**
-- ✅ Secure login & logout flow
+- ✅ JWT **Access Token + Refresh Token**
+- ✅ Tokens stored in **HttpOnly cookies**
+- ✅ Secure login / logout
+- ✅ Refresh token persistence in DB
 - ✅ Password hashing with **bcryptjs**
-- ✅ Strict TypeScript (no `any`)
-- ✅ Express middleware–based authorization
-- ✅ Modular folder structure
-- ✅ Node.js 20+ compatible (tsx runtime)
+- ✅ Forgot password & reset password via email
+- ✅ Strict request validation (no `any`)
+- ✅ Type-safe Express middleware
+- ✅ Clean modular architecture
+- ✅ Node.js 20+ / ESM / tsx runtime
 
 ---
 
@@ -23,12 +26,13 @@ This project demonstrates **modern auth best practices** with clean architecture
 
 - **Node.js** (20+)
 - **Express**
-- **TypeScript**
+- **TypeScript** (strict)
 - **MongoDB + Mongoose**
 - **jsonwebtoken**
 - **bcryptjs**
+- **nodemailer**
 - **cookie-parser**
-- **tsx** (dev runtime)
+- **tsx**
 
 ---
 
@@ -38,29 +42,37 @@ This project demonstrates **modern auth best practices** with clean architecture
 .
 ├── index.ts
 ├── app/
-│   ├── routes.ts
+│   ├── routes/
+│   │   └── index.ts
 │   ├── common/
 │   │   ├── config/
 │   │   │   ├── db.ts
 │   │   │   └── env.ts
 │   │   ├── middlewares/
-│   │   │   ├── jwt-auth.middleware.ts
+│   │   │   ├── auth.middleware.ts
 │   │   │   ├── catch.middleware.ts
 │   │   │   └── error.middleware.ts
 │   │   ├── utils/
-│   │   │   └── jwt.ts
+│   │   │   ├── jwt.ts
+│   │   │   └── mail.ts
+│   │   ├── validators/
+│   │   │   └── index.ts
 │   │   └── types/
 │   │       └── express.d.ts
 │   └── modules/
-│       └── user/
-│           ├── user.controller.ts
-│           ├── user.routes.ts
-│           ├── user.model.ts
-│           ├── user.types.ts
-│           ├── user.validation.ts
-│           └── dto/
-│               ├── login.dto.ts
-│               └── signup.dto.ts
+│       ├── user/
+│       │   ├── dto/
+│       │   │   ├── login.dto.ts
+│       │   │   └── signup.dto.ts
+│       │   ├── user.controller.ts
+│       │   ├── user.routes.ts
+│       │   ├── user.model.ts
+│       │   ├── user.types.ts
+│       │   ├── user.validation.ts
+│       │   └── user.helpers.ts
+│       └── token/
+│           ├── refreshToken.model.ts
+│           └── token.service.ts
 ├── tsconfig.json
 ├── package.json
 ├── .env
@@ -88,168 +100,104 @@ npm install
 
 ---
 
-### 3️⃣ Environment variables
+### 3️⃣ Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file:
 
 ```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/jwt-auth
-JWT_SECRET=super_secret_key_change_me
-JWT_EXPIRES_IN=86400
+PORT=4020
 NODE_ENV=development
+
+MONGO_URI=mongodb://127.0.0.1:27017/auth_jwt
+
+JWT_ACCESS_SECRET=access_secret_key_change_me
+JWT_REFRESH_SECRET=refresh_secret_key_change_me
+
+JWT_ACCESS_EXPIRES_IN=900
+JWT_REFRESH_EXPIRES_IN=604800
+
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USER=your_email@gmail.com
+MAIL_PASS=your_app_password
+
+FRONTEND_URL=http://localhost:3000
 ```
 
 ---
 
-### 4️⃣ Run the project (development)
+### 4️⃣ Run the project
 
 ```bash
 npm run dev
 ```
 
-> Uses **tsx** for fast reload and Node.js ESM support.
-
 ---
 
 ## 🔐 Authentication Flow
 
-### 1. Signup
-- Creates a user
-- Password is hashed with bcrypt
-
-### 2. Login
-- Verifies credentials
-- Signs a JWT
-- Stores JWT in an **HttpOnly cookie** (`access_token`)
-
-### 3. Auth Middleware
-- Reads JWT from cookies
-- Verifies token
-- Attaches `userId` to `req`
-
-### 4. Logout
-- Clears the authentication cookie
+- Signup → hash password → save user
+- Login → issue access & refresh tokens
+- Tokens stored in HttpOnly cookies
+- Auth middleware validates access token
+- Refresh token rotates access token
+- Logout clears cookies & DB token
 
 ---
 
 ## 📌 API Endpoints
 
-### 🔓 Public Routes
+### Public
+- POST `/api/v1/users/register`
+- POST `/api/v1/users/login`
+- POST `/api/v1/users/forgot-password`
+- POST `/api/v1/users/reset-password/:token`
 
-#### Health Check
-```
-GET /api/v1/health
-```
-
----
-
-#### Signup
-```
-POST /api/v1/users/register
-```
-
-Body:
-```json
-{
-  "name": "Agnik",
-  "email": "agnik@example.com",
-  "password": "StrongPassword123"
-}
-```
+### Protected
+- GET `/api/v1/users/me`
+- POST `/api/v1/users/logout`
 
 ---
 
-#### Login
-```
-POST /api/v1/users/login
-```
+## 🍪 Cookie Details
 
-Body:
-```json
-{
-  "email": "agnik@example.com",
-  "password": "StrongPassword123"
-}
-```
-
-Response:
-- Sets `access_token` cookie
-
----
-
-### 🔒 Protected Routes
-
-#### Get Current User
-```
-GET /api/v1/users/me
-```
-
-Requires:
-- Valid `access_token` cookie
-
----
-
-#### Logout
-```
-POST /api/v1/users/logout
-```
-
-Effect:
-- Clears JWT cookie
-
----
-
-## 🍪 JWT Cookie Details
-
-- **Name:** `access_token`
-- **HttpOnly:** true
-- **SameSite:** `lax`
-- **Secure:** enabled in production
-- **MaxAge:** 24 hours
+| Cookie | Purpose | HttpOnly |
+|------|--------|----------|
+| access_token | Auth | ✅ |
+| refresh_token | Token refresh | ✅ |
 
 ---
 
 ## 🛡️ Security Notes
 
-### ✅ Implemented
-- Password hashing (bcrypt)
-- HttpOnly JWT cookies
-- Stateless authentication
-
-### 🔴 Recommended for Production
-- CSRF protection (double-submit token)
-- Refresh tokens
-- Rate limiting
-- HTTPS only (`secure: true` cookies)
-
----
-
-## 🧪 Testing with Postman
-
-1. Call **Login** → cookie is stored automatically
-2. Call protected routes → cookie sent automatically
-3. Call **Logout** → cookie cleared
-
-⚠️ Do not manually add cookies to headers.
+- Password hashing with bcrypt
+- JWT stored in HttpOnly cookies
+- Refresh token stored in DB
+- Strict request validation
 
 ---
 
 ## 📦 Scripts
 
 ```bash
-npm run dev     # Development (tsx)
-npm run build   # Build TypeScript
-npm start       # Run compiled JS
+npm run dev
+npm run build
+npm start
 ```
 
 ---
 
-## 🧾 Git Commit Convention
+## 🧾 Git Commit Example
 
-Example:
 ```bash
-feat(auth): implement JWT authentication with HttpOnly cookies
+feat(auth): implement JWT auth with access & refresh tokens
 ```
 
 ---
+
+## 🏁 Final Notes
+
+This project is ideal for:
+- Learning real-world authentication
+- Production-ready backend templates
+- Interview-ready Node.js architecture
