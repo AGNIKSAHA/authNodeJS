@@ -4,12 +4,13 @@ import cookieParser from 'cookie-parser';
 import routes from './app/routes.js';
 import { connectDB } from './app/common/config/db.js';
 import { errorMiddleware } from './app/common/middlewares/error.middleware.js';
-
+import passport from './app/common/config/passport.js';
 
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+app.use(passport.initialize());
 app.use('/api/v1', routes);
 app.use(errorMiddleware);
 
